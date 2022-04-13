@@ -18,11 +18,12 @@ import (
 )
 
 var (
-	errApplyDiscarded   = errors.New("Apply discarded.")
-	errDestroyDiscarded = errors.New("Destroy discarded.")
-	errRunApproved      = errors.New("approved using the UI or API")
-	errRunDiscarded     = errors.New("discarded using the UI or API")
-	errRunOverridden    = errors.New("overridden using the UI or API")
+	errApplyDiscarded         = errors.New("Apply discarded.")
+	errDestroyDiscarded       = errors.New("Destroy discarded.")
+	errRunApproved            = errors.New("approved using the UI or API")
+	errRunDiscarded           = errors.New("discarded using the UI or API")
+	errRunOverridden          = errors.New("overridden using the UI or API")
+	errNeedsCloudConfirmation = errors.New("Cannot confirm apply due to -input=false. Please handle run confirmation in the browser.")
 )
 
 var (
