@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: BUSL-1.1
+
 package addrs
 
 import (
@@ -49,10 +52,11 @@ type CheckableKind rune
 //go:generate go run golang.org/x/tools/cmd/stringer -type=CheckableKind checkable.go
 
 const (
-	CheckableKindInvalid CheckableKind = 0
-	CheckableResource    CheckableKind = 'R'
-	CheckableOutputValue CheckableKind = 'O'
-	CheckableCheck       CheckableKind = 'C'
+	CheckableKindInvalid   CheckableKind = 0
+	CheckableResource      CheckableKind = 'R'
+	CheckableOutputValue   CheckableKind = 'O'
+	CheckableCheck         CheckableKind = 'C'
+	CheckableInputVariable CheckableKind = 'I'
 )
 
 // ConfigCheckable is an interfaces implemented by address types that represent
@@ -96,7 +100,7 @@ func ParseCheckableStr(kind CheckableKind, src string) (Checkable, tfdiags.Diagn
 		return nil, diags
 	}
 
-	path, remain, diags := parseModuleInstancePrefix(traversal)
+	path, remain, diags := parseModuleInstancePrefix(traversal, false)
 	if diags.HasErrors() {
 		return nil, diags
 	}
@@ -153,7 +157,7 @@ func ParseCheckableStr(kind CheckableKind, src string) (Checkable, tfdiags.Diagn
 	// might be a resource whose type is literally "output".
 	switch kind {
 	case CheckableResource:
-		riAddr, moreDiags := parseResourceInstanceUnderModule(path, remain)
+		riAddr, moreDiags := parseResourceInstanceUnderModule(path, false, remain)
 		diags = diags.Append(moreDiags)
 		if diags.HasErrors() {
 			return nil, diags
@@ -175,6 +179,14 @@ func ParseCheckableStr(kind CheckableKind, src string) (Checkable, tfdiags.Diagn
 			return nil, diags
 		}
 		return Check{Name: name}.Absolute(path), diags
+
+	case CheckableInputVariable:
+		name, nameDiags := getCheckableName("var", "variable value")
+		diags = diags.Append(nameDiags)
+		if diags.HasErrors() {
+			return nil, diags
+		}
+		return InputVariable{Name: name}.Absolute(path), diags
 
 	default:
 		panic(fmt.Sprintf("unsupported CheckableKind %s", kind))

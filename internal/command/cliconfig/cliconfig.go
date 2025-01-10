@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: BUSL-1.1
+
 // Package cliconfig has the types representing and the logic to load CLI-level
 // configuration settings.
 //
