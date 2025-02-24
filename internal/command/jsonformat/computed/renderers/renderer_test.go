@@ -1,6 +1,10 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: BUSL-1.1
+
 package renderers
 
 import (
+	"encoding/json"
 	"strings"
 	"testing"
 
@@ -107,6 +111,13 @@ null -> jsonencode(
     )
 `,
 		},
+		"primitive_create_fake_json": {
+			diff: computed.Diff{
+				Renderer: Primitive(nil, "[\"hello\"] and some more", cty.String),
+				Action:   plans.Create,
+			},
+			expected: `"[\"hello\"] and some more"`,
+		},
 		"primitive_create_null_string": {
 			diff: computed.Diff{
 				Renderer: Primitive(nil, nil, cty.String),
@@ -123,21 +134,21 @@ null -> jsonencode(
 		},
 		"primitive_create": {
 			diff: computed.Diff{
-				Renderer: Primitive(nil, 1.0, cty.Number),
+				Renderer: Primitive(nil, json.Number("1"), cty.Number),
 				Action:   plans.Create,
 			},
 			expected: "1",
 		},
 		"primitive_delete": {
 			diff: computed.Diff{
-				Renderer: Primitive(1.0, nil, cty.Number),
+				Renderer: Primitive(json.Number("1"), nil, cty.Number),
 				Action:   plans.Delete,
 			},
 			expected: "1 -> null",
 		},
 		"primitive_delete_override": {
 			diff: computed.Diff{
-				Renderer: Primitive(1.0, nil, cty.Number),
+				Renderer: Primitive(json.Number("1"), nil, cty.Number),
 				Action:   plans.Delete,
 			},
 			opts:     computed.RenderHumanOpts{OverrideNullSuffix: true},
@@ -145,35 +156,49 @@ null -> jsonencode(
 		},
 		"primitive_update_to_null": {
 			diff: computed.Diff{
-				Renderer: Primitive(1.0, nil, cty.Number),
+				Renderer: Primitive(json.Number("1"), nil, cty.Number),
 				Action:   plans.Update,
 			},
 			expected: "1 -> null",
 		},
 		"primitive_update_from_null": {
 			diff: computed.Diff{
-				Renderer: Primitive(nil, 1.0, cty.Number),
+				Renderer: Primitive(nil, json.Number("1"), cty.Number),
 				Action:   plans.Update,
 			},
 			expected: "null -> 1",
 		},
 		"primitive_update": {
 			diff: computed.Diff{
-				Renderer: Primitive(0.0, 1.0, cty.Number),
+				Renderer: Primitive(json.Number("0"), json.Number("1"), cty.Number),
 				Action:   plans.Update,
 			},
 			expected: "0 -> 1",
 		},
 		"primitive_update_long_float": {
 			diff: computed.Diff{
-				Renderer: Primitive(123456789.0, 987654321.0, cty.Number),
+				Renderer: Primitive(json.Number("123456789"), json.Number("987654321"), cty.Number),
 				Action:   plans.Update,
 			},
 			expected: "123456789 -> 987654321",
 		},
+		"primitive_update_long_float_with_decimals": {
+			diff: computed.Diff{
+				Renderer: Primitive(json.Number("1.23456789"), json.Number("9.87654321"), cty.Number),
+				Action:   plans.Update,
+			},
+			expected: "1.23456789 -> 9.87654321",
+		},
+		"primitive_create_very_long_float": {
+			diff: computed.Diff{
+				Renderer: Primitive(nil, json.Number("9223372036854773256"), cty.Number),
+				Action:   plans.Create,
+			},
+			expected: "9223372036854773256",
+		},
 		"primitive_update_replace": {
 			diff: computed.Diff{
-				Renderer: Primitive(0.0, 1.0, cty.Number),
+				Renderer: Primitive(json.Number("0"), json.Number("1"), cty.Number),
 				Action:   plans.Update,
 				Replace:  true,
 			},
@@ -372,7 +397,7 @@ jsonencode(
 		"sensitive_update": {
 			diff: computed.Diff{
 				Renderer: Sensitive(computed.Diff{
-					Renderer: Primitive(0.0, 1.0, cty.Number),
+					Renderer: Primitive(json.Number("0"), json.Number("1"), cty.Number),
 					Action:   plans.Update,
 				}, true, true),
 				Action: plans.Update,
@@ -382,7 +407,7 @@ jsonencode(
 		"sensitive_update_replace": {
 			diff: computed.Diff{
 				Renderer: Sensitive(computed.Diff{
-					Renderer: Primitive(0.0, 1.0, cty.Number),
+					Renderer: Primitive(json.Number("0"), json.Number("1"), cty.Number),
 					Action:   plans.Update,
 					Replace:  true,
 				}, true, true),
@@ -401,12 +426,19 @@ jsonencode(
 		"computed_update": {
 			diff: computed.Diff{
 				Renderer: Unknown(computed.Diff{
-					Renderer: Primitive(0.0, nil, cty.Number),
+					Renderer: Primitive(json.Number("0"), nil, cty.Number),
 					Action:   plans.Delete,
 				}),
 				Action: plans.Update,
 			},
 			expected: "0 -> (known after apply)",
+		},
+		"computed_update_from_null": {
+			diff: computed.Diff{
+				Renderer: Unknown(computed.Diff{}),
+				Action:   plans.Update,
+			},
+			expected: "(known after apply)",
 		},
 		"computed_create_forces_replacement": {
 			diff: computed.Diff{
@@ -419,7 +451,7 @@ jsonencode(
 		"computed_update_forces_replacement": {
 			diff: computed.Diff{
 				Renderer: Unknown(computed.Diff{
-					Renderer: Primitive(0.0, nil, cty.Number),
+					Renderer: Primitive(json.Number("0"), nil, cty.Number),
 					Action:   plans.Delete,
 				}),
 				Action:  plans.Update,
@@ -438,7 +470,7 @@ jsonencode(
 			diff: computed.Diff{
 				Renderer: Object(map[string]computed.Diff{
 					"attribute_one": {
-						Renderer: Primitive(nil, 0.0, cty.Number),
+						Renderer: Primitive(nil, json.Number("0"), cty.Number),
 						Action:   plans.Create,
 					},
 				}),
@@ -461,7 +493,7 @@ jsonencode(
 			diff: computed.Diff{
 				Renderer: Object(map[string]computed.Diff{
 					"attribute_one": {
-						Renderer: Primitive(0.0, nil, cty.Number),
+						Renderer: Primitive(json.Number("0"), nil, cty.Number),
 						Action:   plans.Delete,
 					},
 				}),
@@ -484,7 +516,7 @@ jsonencode(
 			diff: computed.Diff{
 				Renderer: NestedObject(map[string]computed.Diff{
 					"attribute_one": {
-						Renderer: Primitive(0.0, nil, cty.Number),
+						Renderer: Primitive(json.Number("0"), nil, cty.Number),
 						Action:   plans.Delete,
 					},
 				}),
@@ -500,7 +532,7 @@ jsonencode(
 			diff: computed.Diff{
 				Renderer: Object(map[string]computed.Diff{
 					"attribute_one": {
-						Renderer: Primitive(nil, 0.0, cty.Number),
+						Renderer: Primitive(nil, json.Number("0"), cty.Number),
 						Action:   plans.Create,
 					},
 				}),
@@ -516,7 +548,7 @@ jsonencode(
 			diff: computed.Diff{
 				Renderer: Object(map[string]computed.Diff{
 					"attribute_one": {
-						Renderer: Primitive(0.0, 1.0, cty.Number),
+						Renderer: Primitive(json.Number("0"), json.Number("1"), cty.Number),
 						Action:   plans.Update,
 					},
 				}),
@@ -532,7 +564,7 @@ jsonencode(
 			diff: computed.Diff{
 				Renderer: Object(map[string]computed.Diff{
 					"attribute_one": {
-						Renderer: Primitive(0.0, 1.0, cty.Number),
+						Renderer: Primitive(json.Number("0"), json.Number("1"), cty.Number),
 						Action:   plans.Update,
 					},
 				}),
@@ -549,7 +581,7 @@ jsonencode(
 			diff: computed.Diff{
 				Renderer: Object(map[string]computed.Diff{
 					"attribute_one": {
-						Renderer: Primitive(0.0, nil, cty.Number),
+						Renderer: Primitive(json.Number("0"), nil, cty.Number),
 						Action:   plans.Delete,
 					},
 				}),
@@ -565,15 +597,15 @@ jsonencode(
 			diff: computed.Diff{
 				Renderer: Object(map[string]computed.Diff{
 					"attribute_one": {
-						Renderer: Primitive(0.0, 1.0, cty.Number),
+						Renderer: Primitive(json.Number("0"), json.Number("1"), cty.Number),
 						Action:   plans.Update,
 					},
 					"attribute_two": {
-						Renderer: Primitive(0.0, 0.0, cty.Number),
+						Renderer: Primitive(json.Number("0"), json.Number("0"), cty.Number),
 						Action:   plans.NoOp,
 					},
 					"attribute_three": {
-						Renderer: Primitive(nil, 1.0, cty.Number),
+						Renderer: Primitive(nil, json.Number("1"), cty.Number),
 						Action:   plans.Create,
 					},
 				}),
@@ -592,7 +624,7 @@ jsonencode(
 				Renderer: Object(map[string]computed.Diff{
 					"attribute_one": {
 						Renderer: Sensitive(computed.Diff{
-							Renderer: Primitive(nil, 1.0, cty.Number),
+							Renderer: Primitive(nil, json.Number("1"), cty.Number),
 							Action:   plans.Create,
 						}, false, true),
 						Action: plans.Create,
@@ -611,7 +643,7 @@ jsonencode(
 				Renderer: Object(map[string]computed.Diff{
 					"attribute_one": {
 						Renderer: Sensitive(computed.Diff{
-							Renderer: Primitive(0.0, 1.0, cty.Number),
+							Renderer: Primitive(json.Number("0"), json.Number("1"), cty.Number),
 							Action:   plans.Update,
 						}, true, true),
 						Action: plans.Update,
@@ -630,7 +662,7 @@ jsonencode(
 				Renderer: Object(map[string]computed.Diff{
 					"attribute_one": {
 						Renderer: Sensitive(computed.Diff{
-							Renderer: Primitive(0.0, nil, cty.Number),
+							Renderer: Primitive(json.Number("0"), nil, cty.Number),
 							Action:   plans.Delete,
 						}, true, false),
 						Action: plans.Delete,
@@ -665,7 +697,7 @@ jsonencode(
 				Renderer: Object(map[string]computed.Diff{
 					"attribute_one": {
 						Renderer: Unknown(computed.Diff{
-							Renderer: Primitive(1.0, nil, cty.Number),
+							Renderer: Primitive(json.Number("1"), nil, cty.Number),
 							Action:   plans.Delete,
 						}),
 						Action: plans.Update,
@@ -683,15 +715,15 @@ jsonencode(
 			diff: computed.Diff{
 				Renderer: Object(map[string]computed.Diff{
 					"attribute_one": {
-						Renderer: Primitive(1.0, 2.0, cty.Number),
+						Renderer: Primitive(json.Number("1"), json.Number("2"), cty.Number),
 						Action:   plans.Update,
 					},
 					"attribute:two": {
-						Renderer: Primitive(2.0, 3.0, cty.Number),
+						Renderer: Primitive(json.Number("2"), json.Number("3"), cty.Number),
 						Action:   plans.Update,
 					},
 					"attribute_six": {
-						Renderer: Primitive(3.0, 4.0, cty.Number),
+						Renderer: Primitive(json.Number("3"), json.Number("4"), cty.Number),
 						Action:   plans.Update,
 					},
 				}),
@@ -847,7 +879,7 @@ jsonencode(
 				Renderer: Map(map[string]computed.Diff{
 					"element_one": {
 						Renderer: Sensitive(computed.Diff{
-							Renderer: Primitive(nil, 1.0, cty.Number),
+							Renderer: Primitive(nil, json.Number("1"), cty.Number),
 							Action:   plans.Create,
 						}, false, true),
 						Action: plans.Create,
@@ -866,7 +898,7 @@ jsonencode(
 				Renderer: Map(map[string]computed.Diff{
 					"element_one": {
 						Renderer: Sensitive(computed.Diff{
-							Renderer: Primitive(0.0, 1.0, cty.Number),
+							Renderer: Primitive(json.Number("0"), json.Number("1"), cty.Number),
 							Action:   plans.Update,
 						}, true, true),
 						Action: plans.Update,
@@ -885,7 +917,7 @@ jsonencode(
 				Renderer: Map(map[string]computed.Diff{
 					"element_one": {
 						Renderer: Sensitive(computed.Diff{
-							Renderer: Primitive(0.0, 0.0, cty.Number),
+							Renderer: Primitive(json.Number("0"), json.Number("0"), cty.Number),
 							Action:   plans.NoOp,
 						}, true, false),
 						Action: plans.Update,
@@ -906,7 +938,7 @@ jsonencode(
 				Renderer: Map(map[string]computed.Diff{
 					"element_one": {
 						Renderer: Sensitive(computed.Diff{
-							Renderer: Primitive(0.0, nil, cty.Number),
+							Renderer: Primitive(json.Number("0"), nil, cty.Number),
 							Action:   plans.Delete,
 						}, true, false),
 						Action: plans.Delete,
@@ -941,7 +973,7 @@ jsonencode(
 				Renderer: Map(map[string]computed.Diff{
 					"element_one": {
 						Renderer: Unknown(computed.Diff{
-							Renderer: Primitive(1.0, nil, cty.Number),
+							Renderer: Primitive(json.Number("1"), nil, cty.Number),
 							Action:   plans.Delete,
 						}),
 						Action: plans.Update,
@@ -959,15 +991,15 @@ jsonencode(
 			diff: computed.Diff{
 				Renderer: Map(map[string]computed.Diff{
 					"element_one": {
-						Renderer: Primitive(1.0, 2.0, cty.Number),
+						Renderer: Primitive(json.Number("1"), json.Number("2"), cty.Number),
 						Action:   plans.Update,
 					},
 					"element_two": {
-						Renderer: Primitive(1.0, 3.0, cty.Number),
+						Renderer: Primitive(json.Number("1"), json.Number("3"), cty.Number),
 						Action:   plans.Update,
 					},
 					"element_three": {
-						Renderer: Primitive(1.0, 4.0, cty.Number),
+						Renderer: Primitive(json.Number("1"), json.Number("4"), cty.Number),
 						Action:   plans.Update,
 					},
 				}),
@@ -985,15 +1017,15 @@ jsonencode(
 			diff: computed.Diff{
 				Renderer: NestedMap(map[string]computed.Diff{
 					"element_one": {
-						Renderer: Primitive(1.0, 2.0, cty.Number),
+						Renderer: Primitive(json.Number("1"), json.Number("2"), cty.Number),
 						Action:   plans.Update,
 					},
 					"element_two": {
-						Renderer: Primitive(1.0, 3.0, cty.Number),
+						Renderer: Primitive(json.Number("1"), json.Number("3"), cty.Number),
 						Action:   plans.Update,
 					},
 					"element_three": {
-						Renderer: Primitive(1.0, 4.0, cty.Number),
+						Renderer: Primitive(json.Number("1"), json.Number("4"), cty.Number),
 						Action:   plans.Update,
 					},
 				}),
@@ -1018,7 +1050,7 @@ jsonencode(
 			diff: computed.Diff{
 				Renderer: List([]computed.Diff{
 					{
-						Renderer: Primitive(nil, 1.0, cty.Number),
+						Renderer: Primitive(nil, json.Number("1"), cty.Number),
 						Action:   plans.Create,
 					},
 				}),
@@ -1041,7 +1073,7 @@ jsonencode(
 			diff: computed.Diff{
 				Renderer: List([]computed.Diff{
 					{
-						Renderer: Primitive(1.0, nil, cty.Number),
+						Renderer: Primitive(json.Number("1"), nil, cty.Number),
 						Action:   plans.Delete,
 					},
 				}),
@@ -1057,7 +1089,7 @@ jsonencode(
 			diff: computed.Diff{
 				Renderer: List([]computed.Diff{
 					{
-						Renderer: Primitive(nil, 1.0, cty.Number),
+						Renderer: Primitive(nil, json.Number("1"), cty.Number),
 						Action:   plans.Create,
 					},
 				}),
@@ -1073,7 +1105,7 @@ jsonencode(
 			diff: computed.Diff{
 				Renderer: List([]computed.Diff{
 					{
-						Renderer: Primitive(0.0, 1.0, cty.Number),
+						Renderer: Primitive(json.Number("0"), json.Number("1"), cty.Number),
 						Action:   plans.Update,
 					},
 				}),
@@ -1089,11 +1121,11 @@ jsonencode(
 			diff: computed.Diff{
 				Renderer: List([]computed.Diff{
 					{
-						Renderer: Primitive(0.0, nil, cty.Number),
+						Renderer: Primitive(json.Number("0"), nil, cty.Number),
 						Action:   plans.Delete,
 					},
 					{
-						Renderer: Primitive(nil, 1.0, cty.Number),
+						Renderer: Primitive(nil, json.Number("1"), cty.Number),
 						Action:   plans.Create,
 					},
 				}),
@@ -1110,7 +1142,7 @@ jsonencode(
 			diff: computed.Diff{
 				Renderer: List([]computed.Diff{
 					{
-						Renderer: Primitive(0.0, nil, cty.Number),
+						Renderer: Primitive(json.Number("0"), nil, cty.Number),
 						Action:   plans.Delete,
 					},
 				}),
@@ -1126,7 +1158,7 @@ jsonencode(
 			diff: computed.Diff{
 				Renderer: List([]computed.Diff{
 					{
-						Renderer: Primitive(0.0, 1.0, cty.Number),
+						Renderer: Primitive(json.Number("0"), json.Number("1"), cty.Number),
 						Action:   plans.Update,
 					},
 				}),
@@ -1143,23 +1175,23 @@ jsonencode(
 			diff: computed.Diff{
 				Renderer: NestedList([]computed.Diff{
 					{
-						Renderer: Primitive(0.0, 0.0, cty.Number),
+						Renderer: Primitive(json.Number("0"), json.Number("0"), cty.Number),
 						Action:   plans.NoOp,
 					},
 					{
-						Renderer: Primitive(1.0, 1.0, cty.Number),
+						Renderer: Primitive(json.Number("1"), json.Number("1"), cty.Number),
 						Action:   plans.NoOp,
 					},
 					{
-						Renderer: Primitive(2.0, 5.0, cty.Number),
+						Renderer: Primitive(json.Number("2"), json.Number("5"), cty.Number),
 						Action:   plans.Update,
 					},
 					{
-						Renderer: Primitive(3.0, 3.0, cty.Number),
+						Renderer: Primitive(json.Number("3"), json.Number("3"), cty.Number),
 						Action:   plans.NoOp,
 					},
 					{
-						Renderer: Primitive(4.0, 4.0, cty.Number),
+						Renderer: Primitive(json.Number("4"), json.Number("4"), cty.Number),
 						Action:   plans.NoOp,
 					},
 				}),
@@ -1176,23 +1208,23 @@ jsonencode(
 			diff: computed.Diff{
 				Renderer: List([]computed.Diff{
 					{
-						Renderer: Primitive(0.0, 0.0, cty.Number),
+						Renderer: Primitive(json.Number("0"), json.Number("0"), cty.Number),
 						Action:   plans.NoOp,
 					},
 					{
-						Renderer: Primitive(1.0, 1.0, cty.Number),
+						Renderer: Primitive(json.Number("1"), json.Number("1"), cty.Number),
 						Action:   plans.NoOp,
 					},
 					{
-						Renderer: Primitive(2.0, 5.0, cty.Number),
+						Renderer: Primitive(json.Number("2"), json.Number("5"), cty.Number),
 						Action:   plans.Update,
 					},
 					{
-						Renderer: Primitive(3.0, 3.0, cty.Number),
+						Renderer: Primitive(json.Number("3"), json.Number("3"), cty.Number),
 						Action:   plans.NoOp,
 					},
 					{
-						Renderer: Primitive(4.0, 4.0, cty.Number),
+						Renderer: Primitive(json.Number("4"), json.Number("4"), cty.Number),
 						Action:   plans.NoOp,
 					},
 				}),
@@ -1213,7 +1245,7 @@ jsonencode(
 				Renderer: List([]computed.Diff{
 					{
 						Renderer: Sensitive(computed.Diff{
-							Renderer: Primitive(nil, 1.0, cty.Number),
+							Renderer: Primitive(nil, json.Number("1"), cty.Number),
 							Action:   plans.Create,
 						}, false, true),
 						Action: plans.Create,
@@ -1232,7 +1264,7 @@ jsonencode(
 				Renderer: List([]computed.Diff{
 					{
 						Renderer: Sensitive(computed.Diff{
-							Renderer: Primitive(1.0, nil, cty.Number),
+							Renderer: Primitive(json.Number("1"), nil, cty.Number),
 							Action:   plans.Delete,
 						}, true, false),
 						Action: plans.Delete,
@@ -1251,7 +1283,7 @@ jsonencode(
 				Renderer: List([]computed.Diff{
 					{
 						Renderer: Sensitive(computed.Diff{
-							Renderer: Primitive(0.0, 1.0, cty.Number),
+							Renderer: Primitive(json.Number("0"), json.Number("1"), cty.Number),
 							Action:   plans.Update,
 						}, true, true),
 						Action: plans.Update,
@@ -1270,7 +1302,7 @@ jsonencode(
 				Renderer: List([]computed.Diff{
 					{
 						Renderer: Sensitive(computed.Diff{
-							Renderer: Primitive(1.0, 1.0, cty.Number),
+							Renderer: Primitive(json.Number("1"), json.Number("1"), cty.Number),
 							Action:   plans.NoOp,
 						}, false, true),
 						Action: plans.Update,
@@ -1307,7 +1339,7 @@ jsonencode(
 				Renderer: List([]computed.Diff{
 					{
 						Renderer: Unknown(computed.Diff{
-							Renderer: Primitive(0.0, nil, cty.Number),
+							Renderer: Primitive(json.Number("0"), nil, cty.Number),
 							Action:   plans.Delete,
 						}),
 						Action: plans.Update,
@@ -1332,7 +1364,7 @@ jsonencode(
 			diff: computed.Diff{
 				Renderer: Set([]computed.Diff{
 					{
-						Renderer: Primitive(nil, 1.0, cty.Number),
+						Renderer: Primitive(nil, json.Number("1"), cty.Number),
 						Action:   plans.Create,
 					},
 				}),
@@ -1355,7 +1387,7 @@ jsonencode(
 			diff: computed.Diff{
 				Renderer: Set([]computed.Diff{
 					{
-						Renderer: Primitive(1.0, nil, cty.Number),
+						Renderer: Primitive(json.Number("1"), nil, cty.Number),
 						Action:   plans.Delete,
 					},
 				}),
@@ -1371,7 +1403,7 @@ jsonencode(
 			diff: computed.Diff{
 				Renderer: Set([]computed.Diff{
 					{
-						Renderer: Primitive(nil, 1.0, cty.Number),
+						Renderer: Primitive(nil, json.Number("1"), cty.Number),
 						Action:   plans.Create,
 					},
 				}),
@@ -1387,7 +1419,7 @@ jsonencode(
 			diff: computed.Diff{
 				Renderer: Set([]computed.Diff{
 					{
-						Renderer: Primitive(0.0, 1.0, cty.Number),
+						Renderer: Primitive(json.Number("0"), json.Number("1"), cty.Number),
 						Action:   plans.Update,
 					},
 				}),
@@ -1403,11 +1435,11 @@ jsonencode(
 			diff: computed.Diff{
 				Renderer: Set([]computed.Diff{
 					{
-						Renderer: Primitive(0.0, nil, cty.Number),
+						Renderer: Primitive(json.Number("0"), nil, cty.Number),
 						Action:   plans.Delete,
 					},
 					{
-						Renderer: Primitive(nil, 1.0, cty.Number),
+						Renderer: Primitive(nil, json.Number("1"), cty.Number),
 						Action:   plans.Create,
 					},
 				}),
@@ -1424,7 +1456,7 @@ jsonencode(
 			diff: computed.Diff{
 				Renderer: Set([]computed.Diff{
 					{
-						Renderer: Primitive(0.0, nil, cty.Number),
+						Renderer: Primitive(json.Number("0"), nil, cty.Number),
 						Action:   plans.Delete,
 					},
 				}),
@@ -1440,7 +1472,7 @@ jsonencode(
 			diff: computed.Diff{
 				Renderer: Set([]computed.Diff{
 					{
-						Renderer: Primitive(0.0, 1.0, cty.Number),
+						Renderer: Primitive(json.Number("0"), json.Number("1"), cty.Number),
 						Action:   plans.Update,
 					},
 				}),
@@ -1459,7 +1491,7 @@ jsonencode(
 					{
 						Renderer: Object(map[string]computed.Diff{
 							"attribute_one": {
-								Renderer: Primitive(0.0, 1.0, cty.Number),
+								Renderer: Primitive(json.Number("0"), json.Number("1"), cty.Number),
 								Action:   plans.Update,
 							},
 						}),
@@ -1481,23 +1513,23 @@ jsonencode(
 			diff: computed.Diff{
 				Renderer: Set([]computed.Diff{
 					{
-						Renderer: Primitive(0.0, 0.0, cty.Number),
+						Renderer: Primitive(json.Number("0"), json.Number("0"), cty.Number),
 						Action:   plans.NoOp,
 					},
 					{
-						Renderer: Primitive(1.0, 1.0, cty.Number),
+						Renderer: Primitive(json.Number("1"), json.Number("1"), cty.Number),
 						Action:   plans.NoOp,
 					},
 					{
-						Renderer: Primitive(2.0, 5.0, cty.Number),
+						Renderer: Primitive(json.Number("2"), json.Number("5"), cty.Number),
 						Action:   plans.Update,
 					},
 					{
-						Renderer: Primitive(3.0, 3.0, cty.Number),
+						Renderer: Primitive(json.Number("3"), json.Number("3"), cty.Number),
 						Action:   plans.NoOp,
 					},
 					{
-						Renderer: Primitive(4.0, 4.0, cty.Number),
+						Renderer: Primitive(json.Number("4"), json.Number("4"), cty.Number),
 						Action:   plans.NoOp,
 					},
 				}),
@@ -1515,7 +1547,7 @@ jsonencode(
 				Renderer: Set([]computed.Diff{
 					{
 						Renderer: Sensitive(computed.Diff{
-							Renderer: Primitive(nil, 1.0, cty.Number),
+							Renderer: Primitive(nil, json.Number("1"), cty.Number),
 							Action:   plans.Create,
 						}, false, true),
 						Action: plans.Create,
@@ -1534,7 +1566,7 @@ jsonencode(
 				Renderer: Set([]computed.Diff{
 					{
 						Renderer: Sensitive(computed.Diff{
-							Renderer: Primitive(1.0, nil, cty.Number),
+							Renderer: Primitive(json.Number("1"), nil, cty.Number),
 							Action:   plans.Delete,
 						}, false, true),
 						Action: plans.Delete,
@@ -1553,7 +1585,7 @@ jsonencode(
 				Renderer: Set([]computed.Diff{
 					{
 						Renderer: Sensitive(computed.Diff{
-							Renderer: Primitive(0.0, 1.0, cty.Number),
+							Renderer: Primitive(json.Number("0"), json.Number("1"), cty.Number),
 							Action:   plans.Update,
 						}, true, true),
 						Action: plans.Update,
@@ -1572,7 +1604,7 @@ jsonencode(
 				Renderer: Set([]computed.Diff{
 					{
 						Renderer: Sensitive(computed.Diff{
-							Renderer: Primitive(1.0, 2.0, cty.Number),
+							Renderer: Primitive(json.Number("1"), json.Number("2"), cty.Number),
 							Action:   plans.Update,
 						}, false, true),
 						Action: plans.Update,
@@ -1609,7 +1641,7 @@ jsonencode(
 				Renderer: Set([]computed.Diff{
 					{
 						Renderer: Unknown(computed.Diff{
-							Renderer: Primitive(0.0, nil, cty.Number),
+							Renderer: Primitive(json.Number("0"), nil, cty.Number),
 							Action:   plans.Delete,
 						}),
 						Action: plans.Update,
@@ -1885,7 +1917,7 @@ jsonencode(
 								{
 									Renderer: Block(map[string]computed.Diff{
 										"number": {
-											Renderer: Primitive(1.0, 2.0, cty.Number),
+											Renderer: Primitive(json.Number("1"), json.Number("2"), cty.Number),
 											Action:   plans.Update,
 										},
 										"string": {
@@ -1898,7 +1930,7 @@ jsonencode(
 								{
 									Renderer: Block(map[string]computed.Diff{
 										"number": {
-											Renderer: Primitive(1.0, nil, cty.Number),
+											Renderer: Primitive(json.Number("1"), nil, cty.Number),
 											Action:   plans.Delete,
 										},
 										"string": {
@@ -1934,7 +1966,7 @@ jsonencode(
 								{
 									Renderer: Block(map[string]computed.Diff{
 										"number": {
-											Renderer: Primitive(1.0, 2.0, cty.Number),
+											Renderer: Primitive(json.Number("1"), json.Number("2"), cty.Number),
 											Action:   plans.Update,
 										},
 										"string": {
@@ -1947,7 +1979,7 @@ jsonencode(
 								{
 									Renderer: Block(map[string]computed.Diff{
 										"number": {
-											Renderer: Primitive(1.0, nil, cty.Number),
+											Renderer: Primitive(json.Number("1"), nil, cty.Number),
 											Action:   plans.Delete,
 										},
 										"string": {
@@ -1983,7 +2015,7 @@ jsonencode(
 								"key_one": {
 									Renderer: Block(map[string]computed.Diff{
 										"number": {
-											Renderer: Primitive(1.0, 2.0, cty.Number),
+											Renderer: Primitive(json.Number("1"), json.Number("2"), cty.Number),
 											Action:   plans.Update,
 										},
 										"string": {
@@ -1996,7 +2028,7 @@ jsonencode(
 								"key:two": {
 									Renderer: Block(map[string]computed.Diff{
 										"number": {
-											Renderer: Primitive(1.0, nil, cty.Number),
+											Renderer: Primitive(json.Number("1"), nil, cty.Number),
 											Action:   plans.Delete,
 										},
 										"string": {
@@ -2049,15 +2081,15 @@ jsonencode(
 			diff: computed.Diff{
 				Renderer: Block(map[string]computed.Diff{
 					"attribute_one": {
-						Renderer: Primitive(1.0, 2.0, cty.Number),
+						Renderer: Primitive(json.Number("1"), json.Number("2"), cty.Number),
 						Action:   plans.Update,
 					},
 					"attribute:two": {
-						Renderer: Primitive(2.0, 3.0, cty.Number),
+						Renderer: Primitive(json.Number("2"), json.Number("3"), cty.Number),
 						Action:   plans.Update,
 					},
 					"attribute_six": {
-						Renderer: Primitive(3.0, 4.0, cty.Number),
+						Renderer: Primitive(json.Number("3"), json.Number("4"), cty.Number),
 						Action:   plans.Update,
 					},
 				}, Blocks{
@@ -2147,11 +2179,11 @@ jsonencode(
 				Renderer: TypeChange(computed.Diff{
 					Renderer: Map(map[string]computed.Diff{
 						"element_one": {
-							Renderer: Primitive(0.0, nil, cty.Number),
+							Renderer: Primitive(json.Number("0"), nil, cty.Number),
 							Action:   plans.Delete,
 						},
 						"element_two": {
-							Renderer: Primitive(1.0, nil, cty.Number),
+							Renderer: Primitive(json.Number("1"), nil, cty.Number),
 							Action:   plans.Delete,
 						},
 					}),
@@ -2159,11 +2191,11 @@ jsonencode(
 				}, computed.Diff{
 					Renderer: List([]computed.Diff{
 						{
-							Renderer: Primitive(nil, 0.0, cty.Number),
+							Renderer: Primitive(nil, json.Number("0"), cty.Number),
 							Action:   plans.Create,
 						},
 						{
-							Renderer: Primitive(nil, 1.0, cty.Number),
+							Renderer: Primitive(nil, json.Number("1"), cty.Number),
 							Action:   plans.Create,
 						},
 					}),
