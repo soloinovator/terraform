@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: BUSL-1.1
+
 // Package structured contains the structured representation of the JSON changes
 // returned by the jsonplan package.
 //

@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: BUSL-1.1
+
 package tfdiags
 
 import (
@@ -26,7 +29,7 @@ type Diagnostic interface {
 
 type Severity rune
 
-//go:generate go run golang.org/x/tools/cmd/stringer -type=Severity
+//go:generate go tool golang.org/x/tools/cmd/stringer -type=Severity
 
 const (
 	Error   Severity = 'E'
