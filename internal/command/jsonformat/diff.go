@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: BUSL-1.1
+
 package jsonformat
 
 import (
@@ -59,6 +62,18 @@ func precomputeDiffs(plan Plan, mode plans.Mode) diffs {
 		})
 	}
 
+	for _, change := range plan.DeferredChanges {
+		schema := plan.getSchema(change.ResourceChange)
+		structuredChange := structured.FromJsonChange(change.ResourceChange.Change, attribute_path.AlwaysMatcher())
+		diffs.deferred = append(diffs.deferred, deferredDiff{
+			reason: change.Reason,
+			diff: diff{
+				change: change.ResourceChange,
+				diff:   differ.ComputeDiffForBlock(structuredChange, schema.Block),
+			},
+		})
+	}
+
 	for key, output := range plan.OutputChanges {
 		change := structured.FromJsonChange(output, attribute_path.AlwaysMatcher())
 		diffs.outputs[key] = differ.ComputeDiffForOutput(change)
@@ -68,9 +83,10 @@ func precomputeDiffs(plan Plan, mode plans.Mode) diffs {
 }
 
 type diffs struct {
-	drift   []diff
-	changes []diff
-	outputs map[string]computed.Diff
+	drift    []diff
+	changes  []diff
+	deferred []deferredDiff
+	outputs  map[string]computed.Diff
 }
 
 func (d diffs) Empty() bool {
@@ -96,4 +112,13 @@ type diff struct {
 
 func (d diff) Moved() bool {
 	return len(d.change.PreviousAddress) > 0 && d.change.PreviousAddress != d.change.Address
+}
+
+func (d diff) Importing() bool {
+	return d.change.Change.Importing != nil
+}
+
+type deferredDiff struct {
+	diff   diff
+	reason string
 }
