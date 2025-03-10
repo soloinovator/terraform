@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: BUSL-1.1
+
 package jsonchecks
 
 import (
@@ -107,7 +110,6 @@ func TestMarshalCheckStates(t *testing.T) {
 			},
 			[]any{
 				map[string]any{
-					"//": "EXPERIMENTAL: see docs for details",
 					"address": map[string]any{
 						"kind":       "check",
 						"to_display": "check.a",
@@ -129,7 +131,6 @@ func TestMarshalCheckStates(t *testing.T) {
 					"status": "fail",
 				},
 				map[string]any{
-					"//": "EXPERIMENTAL: see docs for details",
 					"address": map[string]any{
 						"kind":       "output_value",
 						"module":     "module.child",
@@ -153,7 +154,6 @@ func TestMarshalCheckStates(t *testing.T) {
 					"status": "fail",
 				},
 				map[string]any{
-					"//": "EXPERIMENTAL: see docs for details",
 					"address": map[string]any{
 						"kind":       "resource",
 						"mode":       "managed",
@@ -179,7 +179,6 @@ func TestMarshalCheckStates(t *testing.T) {
 					"status": "fail",
 				},
 				map[string]any{
-					"//": "EXPERIMENTAL: see docs for details",
 					"address": map[string]any{
 						"kind":       "output_value",
 						"name":       "a",
@@ -196,7 +195,6 @@ func TestMarshalCheckStates(t *testing.T) {
 					"status": "fail",
 				},
 				map[string]any{
-					"//": "EXPERIMENTAL: see docs for details",
 					"address": map[string]any{
 						"kind":       "resource",
 						"mode":       "managed",
